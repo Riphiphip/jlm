@@ -143,22 +143,21 @@ inlineCall(jive::simple_node * call, const lambda::node * lambda)
 }
 
 static void
-inlining(jive::graph & graph)
+inlining(jive::graph & rvsdg)
 {
-	auto root = graph.root();
+  for (auto node : jive::topdown_traverser(rvsdg.root()))
+  {
+    if (auto lambda = dynamic_cast<const lambda::node*>(node))
+    {
+      auto callSummary = lambda->ComputeCallSummary();
 
-	for (auto node : jive::topdown_traverser(root)) {
-		if (!is<lambda::operation>(node))
-			continue;
-
-		auto lambda = static_cast<const lambda::node*>(node);
-
-		std::vector<jive::simple_node*> calls;
-		bool onlyDirectCalls = lambda->direct_calls(&calls);
-
-		if (onlyDirectCalls && calls.size() == 1)
-			inlineCall(calls[0], lambda);
-	}
+      if (callSummary->HasOnlyDirectCalls()
+          && callSummary->NumDirectCalls() == 1)
+      {
+        inlineCall(*callSummary->DirectCalls().begin(), lambda);
+      }
+    }
+  }
 }
 
 static void

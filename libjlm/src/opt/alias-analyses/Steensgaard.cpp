@@ -1305,7 +1305,8 @@ Steensgaard::Analyze(const lambda::node & lambda)
   /*
    * Handle function arguments
    */
-  if (lambda.direct_calls()) {
+  auto callSummary = lambda.ComputeCallSummary();
+  if (callSummary->HasOnlyDirectCalls()) {
     for (auto & argument : lambda.fctarguments()) {
       if (jive::is<PointerType>(argument.type())) {
         LocationSet_.FindOrInsertRegisterLocation(
