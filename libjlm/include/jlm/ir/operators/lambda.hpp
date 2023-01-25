@@ -334,17 +334,6 @@ public:
   finalize(const std::vector<jive::output*> & results);
 
   /**
-  * Retrieves all direct calls of a lambda node.
-  *
-  * \param calls A vector for the direct calls. If vector is NULL, then no call will be
-  * retrieved.
-  *
-  * \return True if the lambda has only direct calls, otherwise False.
-  */
-  bool
-  direct_calls(std::vector<jive::simple_node*> * calls = nullptr) const;
-
-  /**
    * Compute the \ref CallSummary of the lambda.
    *
    * @return A new CallSummary instance.
