@@ -197,6 +197,16 @@ public:
     const RvsdgModule & module,
     StatisticsCollector & statisticsCollector) override;
 
+  /**
+  * \brief Analyze RVSDG module
+  *
+  * \param module RVSDG module the analysis is performed on.
+  *
+  * \return A PointsTo graph.
+  */
+  std::unique_ptr<PointsToGraph>
+  Analyze(const RvsdgModule & rvsdgModule);
+
 private:
 	void
 	ResetState();

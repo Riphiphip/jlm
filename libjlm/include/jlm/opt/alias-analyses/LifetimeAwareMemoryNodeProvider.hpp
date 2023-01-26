@@ -15,6 +15,8 @@ class LifetimeAwareMemoryNodeProvisioning;
 
 class LifetimeAwareMemoryNodeProvider final : public MemoryNodeProvider
 {
+  class Context;
+
 public:
   ~LifetimeAwareMemoryNodeProvider() noexcept override;
 
@@ -66,35 +68,31 @@ public:
     const PointsToGraph & pointsToGraph);
 
 private:
-  std::unique_ptr<MemoryNodeProvisioning>
-  ProvisionMemoryNodes(
-    const RvsdgModule & rvsdgModule,
-    StatisticsCollector & statisticsCollector);
+  void
+  AnnotateTopLifetime(const RvsdgModule & rvsdgModule);
 
   void
-  HandleLambda(const lambda::node & lambdaNode);
+  AnnotateTopLifetimeRegion(jive::region & region);
 
-  /**
-   * TODO: The RegionAwareMemoryNodeProvider features the same function. Move this function to the Rvsdg class.
-   *
-   * Extracts all tail nodes of the RVSDG root region.
-   *
-   * A tail node is any node in the root region on which no other node in the root region depends on. An example would
-   * be a lambda node that is not called within the RVSDG module.
-   *
-   * @param rvsdgModule The RVSDG module from which to extract the tail nodes.
-   * @return A vector of tail nodes.
-   */
-  static std::vector<const jive::node*>
-  ExtractRvsdgTailNodes(const RvsdgModule & rvsdgModule);
+  void
+  AnnotateTopLifetimeStructuralNode(const jive::structural_node & structuralNode);
 
-  static bool
-  IsTailNode(const jive::node & node);
+  void
+  AnnotateTopLifetimeLambda(const lambda::node & lambdaNode);
+
+  void
+  AnnotateTopLifetimeSimpleNode(const jive::simple_node & simpleNode);
+
+  void
+  AnnotateTopLifetimeAlloca(const jive::simple_node & node);
+
+  void
+  AnnotateTopLifetimeStore(const StoreNode & storeNode);
 
   static bool
-  IsOnlyExported(const jive::output & output);
+  IsAllocaNode(const PointsToGraph::MemoryNode * memoryNode) noexcept;
 
-  std::unique_ptr<LifetimeAwareMemoryNodeProvisioning> Provisioning_;
+  std::unique_ptr<Context> Context_;
 };
 
 };

@@ -1570,6 +1570,13 @@ Steensgaard::Analyze(const jive::graph & graph)
 }
 
 std::unique_ptr<PointsToGraph>
+Steensgaard::Analyze(const RvsdgModule &rvsdgModule)
+{
+  StatisticsCollector statisticsCollector;
+  return Analyze(rvsdgModule, statisticsCollector);
+}
+
+std::unique_ptr<PointsToGraph>
 Steensgaard::Analyze(
   const RvsdgModule & module,
   StatisticsCollector & statisticsCollector)
