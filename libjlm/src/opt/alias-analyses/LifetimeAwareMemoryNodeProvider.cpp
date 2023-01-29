@@ -37,13 +37,15 @@ public:
   [[nodiscard]] const HashSet<const PointsToGraph::MemoryNode*> &
   GetRegionEntryNodes(const jive::region & region) const override
   {
-    JLM_UNREACHABLE("Not yet implemented!");
+    JLM_ASSERT(ContainsRegionEntryNodes(region));
+    return regionEntryMemoryNodes_.find(&region)->second;
   }
 
   [[nodiscard]] const HashSet<const PointsToGraph::MemoryNode*> &
   GetRegionExitNodes(const jive::region & region) const override
   {
-    JLM_UNREACHABLE("Not yet implemented");
+    JLM_ASSERT(ContainsRegionExitNodes(region));
+    return regionExitMemoryNodes_.find(&region)->second;
   }
 
   [[nodiscard]] const HashSet<const PointsToGraph::MemoryNode*> &
@@ -61,7 +63,32 @@ public:
   [[nodiscard]] HashSet<const PointsToGraph::MemoryNode*>
   GetOutputNodes(const jive::output & output) const override
   {
-    JLM_UNREACHABLE("Not yet implemented!");
+    JLM_ASSERT(is<PointerType>(output.type()));
+    auto & registerNode = PointsToGraph_.GetRegisterNode(output);
+
+    HashSet<const PointsToGraph::MemoryNode*> memoryNodes;
+    for (auto & memoryNode : registerNode.Targets())
+      memoryNodes.Insert(&memoryNode);
+
+    return memoryNodes;
+  }
+
+  void
+  AddRegionEntryNodes(
+    const jive::region & region,
+    HashSet<const PointsToGraph::MemoryNode*> memoryNodes)
+  {
+    JLM_ASSERT(!ContainsRegionEntryNodes(region));
+    regionEntryMemoryNodes_[&region] = std::move(memoryNodes);
+  }
+
+  void
+  AddRegionExitNodes(
+    const jive::region & region,
+    HashSet<const PointsToGraph::MemoryNode*> memoryNodes)
+  {
+    JLM_ASSERT(!ContainsRegionExitNodes(region));
+    regionExitMemoryNodes_[&region] = std::move(memoryNodes);
   }
 
   static std::unique_ptr<LifetimeAwareMemoryNodeProvisioning>
@@ -71,7 +98,22 @@ public:
   }
 
 private:
+  [[nodiscard]] bool
+  ContainsRegionEntryNodes(const jive::region & region) const noexcept
+  {
+    return regionEntryMemoryNodes_.find(&region) != regionEntryMemoryNodes_.end();
+  }
+
+  [[nodiscard]] bool
+  ContainsRegionExitNodes(const jive::region & region) const noexcept
+  {
+    return regionExitMemoryNodes_.find(&region) != regionExitMemoryNodes_.end();
+  }
+
   const PointsToGraph & PointsToGraph_;
+
+  std::unordered_map<const jive::region*, HashSet<const PointsToGraph::MemoryNode*>> regionEntryMemoryNodes_;
+  std::unordered_map<const jive::region*, HashSet<const PointsToGraph::MemoryNode*>> regionExitMemoryNodes_;
 };
 
 /** \brief Context for lifetime aware provisioning
@@ -108,6 +150,25 @@ public:
     return GetSeedProvisioning().GetPointsToGraph();
   }
 
+  [[nodiscard]] std::unique_ptr<LifetimeAwareMemoryNodeProvisioning>
+  GetLifetimeAwareMemoryNodeProvisioning() noexcept
+  {
+    return std::move(Provisioning_);
+  }
+
+  [[nodiscard]] const lambda::node::CallSummary &
+  GetCallSummary(const lambda::node & lambdaNode)
+  {
+    if (HasCallSummary(lambdaNode))
+    {
+      return *CallSummaries_.find(&lambdaNode)->second;
+    }
+
+    auto callSummary = lambdaNode.ComputeCallSummary();
+    CallSummaries_[&lambdaNode] = std::move(callSummary);
+    return *CallSummaries_.find(&lambdaNode)->second;
+  }
+
   void
   AddAliveNode(
     const jive::region & region,
@@ -124,6 +185,22 @@ public:
   {
     auto aliveNodes = GetAliveNodes(region);
     aliveNodes.UnionWith(memoryNodes);
+  }
+
+  void
+  AddRegionEntryNodes(
+    const jive::region & region,
+    HashSet<const PointsToGraph::MemoryNode*> & memoryNodes)
+  {
+    Provisioning_->AddRegionEntryNodes(region, std::move(memoryNodes));
+  }
+
+  void
+  AddRegionExitNodes(
+    const jive::region & region,
+    HashSet<const PointsToGraph::MemoryNode*> & memoryNodes)
+  {
+    Provisioning_->AddRegionExitNodes(region, std::move(memoryNodes));
   }
 
   static std::unique_ptr<Context>
@@ -150,6 +227,12 @@ private:
     return AliveNodes_[&region];
   }
 
+  [[nodiscard]] bool
+  HasCallSummary(const lambda::node & lambdaNode)
+  {
+    return CallSummaries_.find(&lambdaNode) != CallSummaries_.end();
+  }
+
   const MemoryNodeProvisioning & SeedProvisioning_;
   std::unique_ptr<LifetimeAwareMemoryNodeProvisioning> Provisioning_;
 
@@ -157,6 +240,8 @@ private:
    * Keeps track of the memory nodes that are alive within a region.
    */
   std::unordered_map<const jive::region*, HashSet<const PointsToGraph::MemoryNode*>> AliveNodes_;
+
+  std::unordered_map<const lambda::node*, std::unique_ptr<lambda::node::CallSummary>> CallSummaries_;
 };
 
 LifetimeAwareMemoryNodeProvider::~LifetimeAwareMemoryNodeProvider() noexcept
@@ -175,6 +260,8 @@ LifetimeAwareMemoryNodeProvider::ProvisionMemoryNodes(
    * FIXME: add statistics
    */
   AnnotateTopLifetime(rvsdgModule);
+
+  return Context_->GetLifetimeAwareMemoryNodeProvisioning();
 }
 
 std::unique_ptr<MemoryNodeProvisioning>
@@ -255,18 +342,21 @@ LifetimeAwareMemoryNodeProvider::AnnotateTopLifetimeLambda(const lambda::node & 
 {
   auto annotateLambdaEntry = [&](const lambda::node & lambdaNode)
   {
-    auto callSummary = lambdaNode.ComputeCallSummary();
-    if (callSummary->IsDead())
+    auto & lambdaRegion = *lambdaNode.subregion();
+
+    auto & callSummary = Context_->GetCallSummary(lambdaNode);
+    if (callSummary.IsDead())
     {
       JLM_UNREACHABLE("Not yet implemented!");
     }
-    else if (callSummary->IsOnlyExported())
+    else if (callSummary.IsOnlyExported())
     {
       auto memoryNodes = Context_->GetSeedProvisioning().GetLambdaEntryNodes(lambdaNode);
       memoryNodes.RemoveWhere(IsAllocaNode);
-      Context_->AddAliveNodes(*lambdaNode.subregion(), memoryNodes);
+      Context_->AddAliveNodes(lambdaRegion, memoryNodes);
+      Context_->AddRegionEntryNodes(lambdaRegion, memoryNodes);
     }
-    else if (callSummary->HasOnlyDirectCalls())
+    else if (callSummary.HasOnlyDirectCalls())
     {
       JLM_UNREACHABLE("Not yet implemented!");
     }
@@ -276,9 +366,29 @@ LifetimeAwareMemoryNodeProvider::AnnotateTopLifetimeLambda(const lambda::node & 
     }
   };
 
-  auto annotateLambdaExit = [](const lambda::node & lambdaNode)
+  auto annotateLambdaExit = [&](const lambda::node & lambdaNode)
   {
-    JLM_UNREACHABLE("Not yet implemented!");
+    auto & lambdaRegion = *lambdaNode.subregion();
+
+    auto & callSummary = Context_->GetCallSummary(lambdaNode);
+    if (callSummary.IsDead())
+    {
+      JLM_UNREACHABLE("Not yet implemented!");
+    }
+    else if (callSummary.IsOnlyExported())
+    {
+      auto memoryNodes = Context_->GetSeedProvisioning().GetLambdaEntryNodes(lambdaNode);
+      memoryNodes.RemoveWhere(IsAllocaNode);
+      Context_->AddRegionExitNodes(lambdaRegion, memoryNodes);
+    }
+    else if (callSummary.HasOnlyDirectCalls())
+    {
+      JLM_UNREACHABLE("Not yet implemented!");
+    }
+    else
+    {
+      JLM_UNREACHABLE("Not yet implemented!");
+    }
   };
 
   annotateLambdaEntry(lambdaNode);
@@ -289,8 +399,7 @@ LifetimeAwareMemoryNodeProvider::AnnotateTopLifetimeLambda(const lambda::node & 
 void
 LifetimeAwareMemoryNodeProvider::AnnotateTopLifetimeSimpleNode(const jive::simple_node & simpleNode)
 {
-  auto annotateAlloca = [](auto & p, auto & n) { provider.AnnotateTopLifetimeAlloca(node); };
-  auto annotateStore = [](auto & p, auto & n) { provider.AnnotateTopLifetimeStore(AssertedCast<StoreNode>(&node)); };
+  auto annotateAlloca = [](auto & p, auto & n) { p.AnnotateTopLifetimeAlloca(n); };
 
   static std::unordered_map<
     std::type_index,

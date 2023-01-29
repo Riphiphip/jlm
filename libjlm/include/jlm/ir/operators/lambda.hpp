@@ -151,8 +151,10 @@ class result;
 */
 class node final : public jive::structural_node
 {
+public:
   class CallSummary;
 
+private:
   class cviterator;
   class cvconstiterator;
 

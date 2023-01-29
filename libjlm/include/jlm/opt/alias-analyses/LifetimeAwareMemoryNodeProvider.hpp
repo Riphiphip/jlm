@@ -86,9 +86,6 @@ private:
   void
   AnnotateTopLifetimeAlloca(const jive::simple_node & node);
 
-  void
-  AnnotateTopLifetimeStore(const StoreNode & storeNode);
-
   static bool
   IsAllocaNode(const PointsToGraph::MemoryNode * memoryNode) noexcept;
 
