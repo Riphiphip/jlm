@@ -1,0 +1,25 @@
+# Copyright 2019 Nico Reißmann <nico.reissmann@gmail.com>
+# See COPYING for terms of redistribution.
+
+JLMPRINT_SRC = \
+	mlir-print/mlir-print.cpp \
+ 
+.PHONY: mlir-print-debug
+mlir-print-debug: CXXFLAGS += $(CXXFLAGS_DEBUG)
+mlir-print-debug: $(JLM_BUILD)/libjive.a $(JLM_BUILD)/libjlm.a $(JLM_BIN)/mlir-print
+
+.PHONY: mlir-print-release
+mlir-print-release: CXXFLAGS += -O3
+mlir-print-release: $(JLM_BUILD)/libjive.a $(JLM_BUILD)/libjlm.a $(JLM_BIN)/mlir-print
+
+$(JLM_BIN)/mlir-print: CPPFLAGS += -I$(JLM_ROOT)/libjlm/include -I$(JLM_ROOT)/libjive/include -I$(shell $(LLVMCONFIG) --includedir)
+$(JLM_BIN)/mlir-print: LDFLAGS+=$(shell $(LLVMCONFIG) --libs core irReader) $(shell $(LLVMCONFIG) --ldflags) $(shell $(LLVMCONFIG) --system-libs) -L$(JLM_BUILD)/ -ljlm -ljive
+$(JLM_BIN)/mlir-print: $(patsubst %.cpp, $(JLM_BUILD)/%.o, $(JLMPRINT_SRC)) $(JLM_BUILD)/libjive.a $(JLM_BUILD)/libjlm.a
+	@mkdir -p $(JLM_BIN)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: mlirprint-clean
+mlirprint-clean:
+	@rm -rf $(JLM_BUILD)/mlir-print
+	@rm -rf $(JLM_BIN)/mlir-print
+
