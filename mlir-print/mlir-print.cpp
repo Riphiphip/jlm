@@ -253,6 +253,30 @@ class PrintMLIR {
         s << "\n";
         return s.str();
     }
+
+    std::string print_theta(const jive::theta_node *tn, int indent_lvl = 0) {
+        std::ostringstream s;
+        s << "rvsdg.thetaNode";
+        s << "(";
+        for (size_t i = 0; i < tn->ninputs(); ++i) {
+            if (i != 0) {
+                s << ", ";
+            }
+            s << print_input_origin(tn->input(i)) << ": " << print_type(&tn->input(i)->type());
+        }
+        s << "):\n";
+        s << print_subregion(tn->subregion(), indent_lvl, "rvsdg.thetaResult", 1);
+        s << "->";
+        for (size_t i = 0; i < tn->noutputs(); ++i) {
+            if (i != 0) {
+                s << ", ";
+            }
+            s << print_type(&tn->output(i)->type());
+        }
+        s << "\n";
+        return s.str();
+    }
+
 public:
     std::string print_mlir(jlm::RvsdgModule &rm) {
         auto &graph = rm.Rvsdg();
