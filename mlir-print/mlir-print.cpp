@@ -140,7 +140,7 @@ class PrintMLIR {
         return s.str();
     }
 
-    std::string print_subregion(jive::region *region, int indent_lvl, std::string result_type) {
+    std::string print_subregion(jive::region *region, int indent_lvl, std::string result_type, int split_result_operands_at = -1) {
         std::ostringstream s;
         // arguments
         s << indent(indent_lvl) << "(";
@@ -175,17 +175,19 @@ class PrintMLIR {
         }
         // results
         if(region->nresults()){
-            // TODO: somehow handle predicate for gamma
             s << indent(indent_lvl+1) << result_type << "(";
             for (size_t i = 0; i < region->nresults(); ++i) {
-                if(i!=0){
+                if(i!=0 && !(split_result_operands_at > 0 && i==(size_t)split_result_operands_at)){
                     s << ", ";
+                }
+                if (split_result_operands_at >= 0 && i == (size_t)split_result_operands_at) {
+                    s << "): (";
                 }
                 s << print_input_origin(region->result(i)) << ":" << print_type(&region->result(i)->type());
             }
             s << ")\n";
         }
-        s << indent(indent_lvl) << "}\n";
+        s << indent(indent_lvl) << "}";
         return s.str();
     }
 
@@ -213,10 +215,11 @@ class PrintMLIR {
             if(i!=0){
                 s << ", ";
             }
-            s << print_input_origin(ln.cvargument(i)->input()) << ": " << print_type(&ln.fctresult(i)->type());
+            s << print_input_origin(ln.cvargument(i)->input()) << ": " << print_type(&ln.cvargument(i)->type());
         }
         s << "):\n";
         s << print_subregion(ln.subregion(), indent_lvl+1, "rvsdg.lambdaResult");
+        s << "\n";
 
         return s.str();
     }
