@@ -140,19 +140,8 @@ class PrintMLIR {
         return s.str();
     }
 
-    std::string print_subregion(jive::region *region, int indent_lvl, std::string result_type, int split_result_operands_at = -1) {
+    std::string print_node(jive::node *node, int indent_lvl = 0) {
         std::ostringstream s;
-        // arguments
-        s << indent(indent_lvl) << "(";
-        for (size_t i = 0; i < region->narguments(); ++i) {
-            if(i!=0){
-                s << ", ";
-            }
-            s << print_output(region->argument(i)) << ": " << print_type(&region->argument(i)->type());
-        }
-        s << "): {\n";
-        // nodes/operations
-        for (auto &node: jive::topdown_traverser(region)) {
             s << indent(indent_lvl+1);
             for (size_t i = 0; i < node->noutputs(); ++i) {
                 if(i!=0){
@@ -164,14 +153,34 @@ class PrintMLIR {
                 s << " = ";
             }
             if (auto sn = dynamic_cast<jive::simple_node *>(node)) {
-                s << print_simple_node(sn, indent_lvl+1);
+            s << print_simple_node(sn, indent_lvl);
+        } else if (auto lambda = dynamic_cast<const jlm::lambda::node *>(node)){
+            s << print_lambda(*lambda, indent_lvl);
             } else if(auto gamma = dynamic_cast<jive::gamma_node *>(node)) {
-                s << print_gamma(gamma, indent_lvl+1);
+            s << print_gamma(gamma, indent_lvl);
             }  else if(auto theta = dynamic_cast<jive::theta_node *>(node)) {
-                // TODO: handle gamma similar to lambda
+            s << print_theta(theta, indent_lvl);
             } else {
-                throw jlm::error("Structural node"+node->operation().debug_string()+"not implemented yet");
+            s << "UNIMPLEMENTED STRUCTURAL NODE: " << node->operation().debug_string() << "\n"; 
+            // throw jlm::error("Structural node"+node->operation().debug_string()+"not implemented yet");
+        }
+        return s.str();
+    }
+
+    std::string print_subregion(jive::region *region, int indent_lvl, std::string result_type, int split_result_operands_at = -1) {
+        std::ostringstream s;
+        // arguments
+        s << indent(indent_lvl) << "(";
+        for (size_t i = 0; i < region->narguments(); ++i) {
+            if(i!=0){
+                s << ", ";
             }
+            s << print_output(region->argument(i)) << ": " << print_type(&region->argument(i)->type());
+            }
+        s << "): {\n";
+        // nodes/operations
+        for (auto &node: jive::topdown_traverser(region)) {
+            s << print_node(node, indent_lvl + 1);
         }
         // results
         if(region->nresults()){
@@ -282,14 +291,8 @@ public:
         auto &graph = rm.Rvsdg();
         auto root = graph.root();
         std::ostringstream s;
-        // if (root->nodes.size() != 1) {
-        //     throw jlm::error("Root should have only one node for now");
-        // }
         for (auto &node: root->nodes){
-            auto ln = dynamic_cast<const jlm::lambda::node *>(&node);
-            if (ln) {
-                s << print_lambda(*ln);
-        }
+            s << print_node(&node);
         }
         return s.str();
     }
