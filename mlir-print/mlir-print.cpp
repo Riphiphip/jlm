@@ -88,9 +88,14 @@ class PrintMLIR {
         std::ostringstream s;
         if(auto bt = dynamic_cast<const jive::bittype *>(t)){
             s << "i" << bt->nbits();
+        } else if (auto loopstate_type = dynamic_cast<const jlm::loopstatetype*>(t)){
+            s << "!rvsdg.loopState";
+        } else if (auto iostate_type = dynamic_cast<const jlm::iostatetype*>(t)){
+            s << "!rvsdg.ioState";
+        } else if (auto memstate_type = dynamic_cast<const jlm::MemoryStateType*>(t)){
+            s << "!rvsdg.memState";
         } else {
             return t->debug_string();
-//            throw jlm::error("Printing for type " + t->debug_string() + " not implemented!");
         }
         return s.str();
     }
