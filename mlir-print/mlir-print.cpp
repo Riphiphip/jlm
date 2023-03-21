@@ -166,7 +166,7 @@ class PrintMLIR {
             if (auto sn = dynamic_cast<jive::simple_node *>(node)) {
                 s << print_simple_node(sn, indent_lvl+1);
             } else if(auto gamma = dynamic_cast<jive::gamma_node *>(node)) {
-                // TODO: handle gamma similar to lambda
+                s << print_gamma(gamma, indent_lvl+1);
             }  else if(auto theta = dynamic_cast<jive::theta_node *>(node)) {
                 // TODO: handle gamma similar to lambda
             } else {
@@ -223,18 +223,51 @@ class PrintMLIR {
 
         return s.str();
     }
+
+    std::string print_gamma(const jive::gamma_node *gn, int indent_lvl = 0) {
+        std::ostringstream s;
+        s << "rvsdg.gammaNode";
+        s << "(" << print_input_origin(gn->predicate()) << "): ";
+        s << "(";
+        for (size_t i = 1; i < gn->ninputs(); ++i) { // Predicate is input 0. Skip it here
+            if(i!=0 && i!=1){
+                s << ", ";
+            }
+            s << print_input_origin(gn->input(i)) << ": " << print_type(&gn->input(i)->type());
+        }
+        s << "): [\n";
+        for (size_t i=0; i < gn->nsubregions(); ++i) {
+            if (i != 0) {
+                s << ",\n";
+            }
+            s << print_subregion(gn->subregion(i), indent_lvl+1, "rvsdg.gammaResult");
+        }
+        s << "\n";
+        s << indent(indent_lvl) << "]->";
+        for (size_t i = 0; i < gn->noutputs(); ++i) {
+            if (i != 0) {
+                s << ", ";
+            }
+            s << print_type(&gn->output(i)->type());
+        }
+        s << "\n";
+        return s.str();
+    }
 public:
     std::string print_mlir(jlm::RvsdgModule &rm) {
         auto &graph = rm.Rvsdg();
         auto root = graph.root();
-        if (root->nodes.size() != 1) {
-            throw jlm::error("Root should have only one node for now");
+        std::ostringstream s;
+        // if (root->nodes.size() != 1) {
+        //     throw jlm::error("Root should have only one node for now");
+        // }
+        for (auto &node: root->nodes){
+            auto ln = dynamic_cast<const jlm::lambda::node *>(&node);
+            if (ln) {
+                s << print_lambda(*ln);
         }
-        auto ln = dynamic_cast<const jlm::lambda::node *>(root->nodes.begin().ptr());
-        if (!ln) {
-            throw jlm::error("Node needs to be a lambda");
         }
-        return print_lambda(*ln);
+        return s.str();
     }
 };
 
