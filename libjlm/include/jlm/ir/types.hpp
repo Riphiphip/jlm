@@ -165,6 +165,11 @@ class PointerType final : public jive::valuetype {
 public:
   ~PointerType() noexcept override;
 
+  PointerType()
+    : jive::valuetype()
+    , ElementType_(nullptr)
+  {}
+
   explicit
   PointerType(const jive::valuetype & elementType)
     : jive::valuetype()
