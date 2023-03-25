@@ -88,11 +88,11 @@ public:
   ~StoreOperation() noexcept override;
 
   StoreOperation(
-    const PointerType & pointerType,
+    const jive::valuetype & valueType,
     size_t numStates,
     size_t alignment)
     : simple_op(
-    CreateArgumentPorts(pointerType, numStates),
+    CreateOperandPorts(valueType, numStates),
     std::vector<jive::port>(numStates, {MemoryStateType::Create()}))
     , Alignment_(alignment)
   {}
@@ -143,22 +143,30 @@ public:
     const variable * state,
     size_t alignment)
   {
-    auto pointerType = dynamic_cast<const PointerType*>(&address->type());
-    if (!pointerType)
-      throw jlm::error("expected pointer type.");
+    auto & valueType = CheckAndExtractValueType(value->type());
 
-    StoreOperation op(*pointerType, 1, alignment);
+    StoreOperation op(valueType, 1, alignment);
     return tac::create(op, {address, value, state});
   }
 
 private:
+  static const jive::valuetype &
+  CheckAndExtractValueType(const jive::type & type)
+  {
+    if (auto valueType = dynamic_cast<const jive::valuetype*>(&type))
+      return *valueType;
+
+    throw error("Expected ValueType");
+  }
+
   static std::vector<jive::port>
-  CreateArgumentPorts(
-    const PointerType & pointerType,
+  CreateOperandPorts(
+    const jive::valuetype & valueType,
     size_t numStates)
   {
+    PointerType pointerType;
     MemoryStateType memoryStateType;
-    std::vector<jive::port> ports({pointerType, pointerType.GetElementType()});
+    std::vector<jive::port> ports({pointerType, valueType});
     std::vector<jive::port> states(numStates, {memoryStateType});
     ports.insert(ports.end(), states.begin(), states.end());
     return ports;
@@ -278,12 +286,12 @@ public:
     const std::vector<jive::output*> & states,
     size_t alignment)
   {
-    auto & pointerType = CheckAndConvertType(address->type());
+    auto & valueType = CheckAndExtractValueType(value->type());
 
     std::vector<jive::output*> operands({address, value});
     operands.insert(operands.end(), states.begin(), states.end());
 
-    StoreOperation storeOperation(pointerType, states.size(), alignment);
+    StoreOperation storeOperation(valueType, states.size(), alignment);
     return jive::outputs(new StoreNode(
       *address->region(),
       storeOperation,
@@ -301,15 +309,14 @@ public:
       storeOperation,
       operands));
   }
-
 private:
-  static const PointerType &
-  CheckAndConvertType(const jive::type & type)
+  static const jive::valuetype &
+  CheckAndExtractValueType(const jive::type & type)
   {
-    if (auto pointerType = dynamic_cast<const PointerType*>(&type))
-      return *pointerType;
+    if (auto valueType = dynamic_cast<const jive::valuetype*>(&type))
+      return *valueType;
 
-    throw error("Expected pointer type.");
+    throw error("Expected ValueType.");
   }
 };
 
