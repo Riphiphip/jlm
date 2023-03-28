@@ -147,7 +147,7 @@ class PrintMLIR {
 
     std::string print_node(jive::node *node, int indent_lvl = 0) {
         std::ostringstream s;
-            s << indent(indent_lvl+1);
+            s << indent(indent_lvl);
             for (size_t i = 0; i < node->noutputs(); ++i) {
                 if(i!=0){
                     s << ", ";
@@ -161,9 +161,9 @@ class PrintMLIR {
             s << print_simple_node(sn, indent_lvl);
         } else if (auto lambda = dynamic_cast<const jlm::lambda::node *>(node)){
             s << print_lambda(*lambda, indent_lvl);
-            } else if(auto gamma = dynamic_cast<jive::gamma_node *>(node)) {
+            } else if (auto gamma = dynamic_cast<jive::gamma_node *>(node)) {
             s << print_gamma(gamma, indent_lvl);
-            }  else if(auto theta = dynamic_cast<jive::theta_node *>(node)) {
+            }  else if (auto theta = dynamic_cast<jive::theta_node *>(node)) {
             s << print_theta(theta, indent_lvl);
             } else if (auto delta = dynamic_cast<jlm::delta::node *>(node)) {
                 s << print_delta(delta, indent_lvl);
