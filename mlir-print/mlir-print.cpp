@@ -84,6 +84,42 @@ class PrintMLIR {
         return std::string(depth * 4, ' ');
     }
 
+    std::string print_function_type(const jlm::FunctionType *ft) {
+        std::ostringstream s;
+        s << "!rvsdg.lambdaRef<(";
+        for (size_t i = 0; i < ft->NumArguments(); ++i) {
+            if (i!=0) {
+                s << ", ";
+            }
+            s << print_type(&ft->ArgumentType(i));
+        }
+        s << ") -> (";
+        for (size_t i = 0; i < ft->NumResults(); ++i) {
+            if (i!=0) {
+                s << ", ";
+            }
+            s << print_type(&ft->ResultType(i));
+        }
+        s << ")>";
+        return s.str();
+    }
+
+    std::string print_pointer_type(const jlm::PointerType *pt) {
+        std::ostringstream s;
+        if (auto ft = dynamic_cast<const jlm::FunctionType*>(&pt->GetElementType())) {
+            s << print_function_type(ft);
+        } else {
+            s << "!llvm.ptr<" << print_type(&pt->GetElementType()) << ">";
+        }
+        return s.str();
+    }
+
+    std::string print_array_type(const jlm::arraytype *at) {
+        std::ostringstream s;
+        s << "!llvm.array<" << at->nelements() << " x " << print_type(&at->element_type()) << ">";
+        return s.str();
+    }
+
     std::string print_type(const jive::type *t){
         std::ostringstream s;
         if(auto bt = dynamic_cast<const jive::bittype *>(t)){
@@ -94,6 +130,12 @@ class PrintMLIR {
             s << "!rvsdg.ioState";
         } else if (auto memstate_type = dynamic_cast<const jlm::MemoryStateType*>(t)){
             s << "!rvsdg.memState";
+        } else if (auto memstate_type = dynamic_cast<const jlm::MemoryStateType*>(t)){
+            s << "!rvsdg.memState";
+        } else if (auto pointer_type = dynamic_cast<const jlm::PointerType*>(t)){
+            s << print_pointer_type(pointer_type);
+        } else if (auto array_type = dynamic_cast<const jlm::arraytype*>(t)){
+            s << print_array_type(array_type);
         } else {
             return t->debug_string();
         }
@@ -114,6 +156,66 @@ class PrintMLIR {
         return print_output(input->origin());
     }
 
+    std::string print_input_with_type(const jive::input *input) {
+        std::ostringstream s;
+        s << print_input_origin(input) << " : " << print_type(&input->type());
+        return s.str();
+    }
+
+    std::string print_apply_node(const jlm::CallNode *cn) {
+        std::ostringstream s;
+        s << "rvsdg.applyNode " << print_input_with_type(cn->input(0));
+        s << "(";
+        for (size_t i = 1; i < cn->ninputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_input_with_type(cn->input(i));
+        }
+        s << ")";
+        if(cn->noutputs()){
+            s << " -> ";
+            for (size_t i = 0; i < cn->noutputs(); ++i) {
+                if(i!=0){
+                    s << ", ";
+                }
+                s << print_type(&cn->output(i)->type());
+            }
+        }
+        return s.str();
+    } 
+
+    std::string print_constant_data_array_initialization(jive::simple_node *node, int indent_lvl) {
+        assert(dynamic_cast<const jlm::ConstantDataArray*>(&node->operation()) && "Can only print constant data array nodes");
+        assert(this->output_map.count(node->output(0)) && "Node output must already be printed");
+
+        std::ostringstream s;
+        // Should probably somehow be replaced with "llvm.mlir.constant", but I didn't understand the documentation
+        s << "llvm.undef: " << print_type(&node->output(0)->type());
+        auto original_output = node->output(0);
+        std::string prev_output_id = print_output(original_output);
+
+        for (size_t i = 0; i < node->ninputs(); ++i){
+            auto input = node->input(i);
+
+            jive::simple_output ephemeral_output(node, original_output->port());
+
+            s << "\n" << indent(indent_lvl) << print_output(&ephemeral_output) 
+              << " = llvm.insertvalue " << print_input_origin(input)
+              << ", " << prev_output_id << "[" << i << "]: " << print_type(&ephemeral_output.type());
+
+            prev_output_id = print_output(&ephemeral_output);
+
+            // Update output table to use last SSA value in the chain.
+            // Also erases intermediate outputs from output_map to prevent
+            // aliasing.
+            this->output_map[original_output] = prev_output_id;
+            this->output_map.erase(&ephemeral_output);
+        }
+
+        return s.str();
+    }
+
     std::string print_simple_node(jive::simple_node *node, int indent_lvl) {
         std::ostringstream s;
         if (auto o = dynamic_cast<const jive::bitconstant_op *>(&(node->operation()))) {
@@ -121,6 +223,10 @@ class PrintMLIR {
             s << "arith.constant ";
             s << value.to_int();
             s << ": " << print_type(&node->output(0)->type());
+        } else if (auto op = dynamic_cast<const jlm::ConstantDataArray*>(&(node->operation()))) {
+            s << print_constant_data_array_initialization(node, indent_lvl);
+        } else if (auto cn = dynamic_cast<const jlm::CallNode*>(node)) {
+            s << print_apply_node(cn);
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
