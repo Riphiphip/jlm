@@ -21,13 +21,18 @@ public:
 	virtual
 	~getelementptr_op();
 
-	inline
-	getelementptr_op(
-		const PointerType & ptype,
-		const std::vector<jive::bittype> & btypes,
-		const PointerType & rtype)
-	: simple_op(create_srcports(ptype, btypes), {rtype})
-	{}
+  inline
+  getelementptr_op(
+    const PointerType & ptype,
+    const std::vector<jive::bittype> & btypes,
+    const jive::valuetype & pointeeType)
+    : simple_op(create_srcports(ptype, btypes), {PointerType()})
+    , PointeeType_(pointeeType.copy())
+  {}
+
+  getelementptr_op(const getelementptr_op & other);
+
+  getelementptr_op(getelementptr_op && other) noexcept;
 
 	virtual bool
 	operator==(const operation & other) const noexcept override;
@@ -47,15 +52,18 @@ public:
 	const jive::type &
 	pointee_type() const noexcept
 	{
-		return static_cast<const PointerType *>(&argument(0).type())->GetElementType();
+		return *PointeeType_;
 	}
 
 	static std::unique_ptr<jlm::tac>
 	create(
 		const variable * address,
-		const std::vector<const variable*> & offsets,
-		const jive::type & type)
+    const jive::type & pointeeType,
+		const std::vector<const variable*> & offsets)
 	{
+    /*
+     * FIXME: GetElementPtr can also take a vector of pointers as address argument.
+     */
 		auto at = dynamic_cast<const PointerType*>(&address->type());
 		if (!at) throw jlm::error("expected pointer type.");
 
@@ -66,10 +74,9 @@ public:
 			bts.push_back(*bt);
 		}
 
-		auto rt = dynamic_cast<const PointerType*>(&type);
-		if (!rt) throw jlm::error("expected pointer type.");
+    auto & checkedPointeeType = CheckPointeeType(pointeeType);
 
-		jlm::getelementptr_op op(*at, bts, *rt);
+		jlm::getelementptr_op op(*at, bts, checkedPointeeType);
 		std::vector<const variable*> operands(1, address);
 		operands.insert(operands.end(), offsets.begin(), offsets.end());
 
@@ -79,9 +86,12 @@ public:
 	static jive::output *
 	create(
 		jive::output * address,
-		const std::vector<jive::output*> & offsets,
-		const jive::type & rtype)
+    const jive::type & pointeeType,
+		const std::vector<jive::output*> & offsets)
 	{
+    /*
+     * FIXME: GetElementPtr can also take a vector of pointers as address argument.
+     */
 		auto at = dynamic_cast<const jlm::PointerType*>(&address->type());
 		if (!at) throw jlm::error("expected pointer type.");
 
@@ -92,10 +102,9 @@ public:
 			bts.push_back(*bt);
 		}
 
-		auto rt = dynamic_cast<const PointerType*>(&rtype);
-		if (!rt) throw jlm::error("expected pointer type.");
+    auto & checkedPointeeType = CheckPointeeType(pointeeType);
 
-		jlm::getelementptr_op op(*at, bts, *rt);
+		jlm::getelementptr_op op(*at, bts, checkedPointeeType);
 		std::vector<jive::output*> operands(1, address);
 		operands.insert(operands.end(), offsets.begin(), offsets.end());
 
@@ -103,6 +112,15 @@ public:
 	}
 
 private:
+  static const jive::valuetype &
+  CheckPointeeType(const jive::type & pointeeType)
+  {
+    if (auto valueType = dynamic_cast<const jive::valuetype*>(&pointeeType))
+      return *valueType;
+
+    throw error("Expected value type.");
+  }
+
 	static inline std::vector<jive::port>
 	create_srcports(const PointerType & ptype, const std::vector<jive::bittype> & btypes)
 	{
@@ -112,6 +130,8 @@ private:
 
 		return ports;
 	}
+
+  std::unique_ptr<jive::type> PointeeType_;
 };
 
 }
