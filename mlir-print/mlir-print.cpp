@@ -165,6 +165,8 @@ class PrintMLIR {
             s << print_gamma(gamma, indent_lvl);
             }  else if(auto theta = dynamic_cast<jive::theta_node *>(node)) {
             s << print_theta(theta, indent_lvl);
+            } else if (auto delta = dynamic_cast<jlm::delta::node *>(node)) {
+                s << print_delta(delta, indent_lvl);
             } else {
             s << "UNIMPLEMENTED STRUCTURAL NODE: " << node->operation().debug_string() << "\n"; 
             // throw jlm::error("Structural node"+node->operation().debug_string()+"not implemented yet");
@@ -287,6 +289,24 @@ class PrintMLIR {
             }
             s << print_type(&tn->output(i)->type());
         }
+        s << "\n";
+        return s.str();
+    }
+
+    std::string print_delta(const jlm::delta::node *dn, int indent_lvl = 0) {
+        std::ostringstream s;
+        s << "rvsdg.deltaNode";
+        s << "(";
+        for (size_t i = 0; i < dn->ninputs(); ++i) {
+            if (i != 0) {
+                s << ", ";
+            }
+            s << print_input_origin(dn->input(i)) << ": " << print_type(&dn->input(i)->type());
+        }
+        s << "):\n";
+        s << print_subregion(dn->subregion(), indent_lvl, "rvsdg.deltaResult");
+        s << "->";
+        s << print_type(&dn->output()->type());
         s << "\n";
         return s.str();
     }
