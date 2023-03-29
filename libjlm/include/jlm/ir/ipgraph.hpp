@@ -228,7 +228,7 @@ public:
 	const FunctionType &
 	fcttype() const noexcept
 	{
-		return *static_cast<const FunctionType*>(&type_.GetElementType());
+		return type_;
 	}
 
 	virtual const jlm::linkage &
@@ -278,7 +278,7 @@ public:
 	}
 
 private:
-	PointerType type_;
+	FunctionType type_;
 	std::string name_;
 	jlm::linkage linkage_;
 	attributeset attributes_;
