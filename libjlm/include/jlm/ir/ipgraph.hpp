@@ -367,7 +367,7 @@ private:
 	data_node(
 		jlm::ipgraph & clg,
 		const std::string & name,
-		const PointerType & type,
+		const jive::valuetype & type,
 		const jlm::linkage & linkage,
     std::string section,
 		bool constant)
@@ -380,7 +380,7 @@ private:
 	{}
 
 public:
-	virtual const PointerType &
+	const jive::valuetype &
 	type() const noexcept override;
 
 	const std::string &
@@ -416,7 +416,7 @@ public:
 		if (!init)
 			return;
 
-		if (init->value()->type() != type().GetElementType())
+		if (init->value()->type() != *type_)
 			throw jlm::error("Invalid type.");
 
 		init_ = std::move(init);
@@ -426,7 +426,7 @@ public:
 	Create(
 		jlm::ipgraph & clg,
 		const std::string & name,
-		const PointerType & type,
+		const jive::valuetype & type,
 		const jlm::linkage & linkage,
     std::string section,
 		bool constant)

@@ -130,7 +130,7 @@ namespace jlm {
 			} else if (auto po = dynamic_cast<const jlm::alloca_op *>(&(node->operation()))) {
 				auto rr = region->graph()->root();
 				auto delta_name = jive::detail::strfmt("hls_alloca_", alloca_cnt++);
-				auto delta_type = jlm::PointerType(po->value_type());
+				auto & delta_type = po->value_type();
                 std::cout << "alloca " << delta_name << ": " << po->value_type().debug_string() << "\n";
 				auto db = delta::node::Create(rr, delta_type, delta_name, linkage::external_linkage, "", false);
 				// create zero constant of allocated type

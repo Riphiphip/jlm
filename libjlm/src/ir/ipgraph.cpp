@@ -149,11 +149,10 @@ data_node::name() const noexcept
 	return name_;
 }
 
-const PointerType &
+const jive::valuetype &
 data_node::type() const noexcept
 {
-	JLM_ASSERT(dynamic_cast<const PointerType*>(type_.get()));
-	return *static_cast<const PointerType*>(type_.get());
+  return *AssertedCast<jive::valuetype>(type_.get());
 }
 
 const jlm::linkage &

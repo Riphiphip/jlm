@@ -428,14 +428,14 @@ declare_globals(llvm::Module & lm, context & ctx)
 	{
 		auto name = gv.getName().str();
 		auto constant = gv.isConstant();
-		auto type = ConvertPointerType(gv.getType(), ctx);
+    auto valueType = ConvertType(gv.getValueType(), ctx);
 		auto linkage = convert_linkage(gv.getLinkage());
     auto section = gv.getSection().str();
 
 		return data_node::Create(
       ctx.module().ipgraph(),
       name,
-      *type,
+      *valueType,
       linkage,
       std::move(section),
       constant);
