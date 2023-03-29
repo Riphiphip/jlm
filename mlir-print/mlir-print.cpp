@@ -21,11 +21,14 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include <iostream>
+#include <algorithm>
 
 #include <getopt.h>
 #include "jlm/ir/operators/lambda.hpp"
 #include "jlm/ir/operators/gamma.hpp"
 #include "jlm/ir/operators/theta.hpp"
+#include "jlm/ir/operators/delta.hpp"
+#include "jlm/ir/operators.hpp"
 #include "jive/types/bitstring/type.hpp"
 #include "jive/rvsdg/traverser.hpp"
 #include "jive/types/bitstring/arithmetic.hpp"
