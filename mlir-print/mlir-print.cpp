@@ -80,6 +80,8 @@ parse_cmdflags(int argc, char ** argv, cmdflags & flags)
 }
 class PrintMLIR {
     std::unordered_map<const jive::output *, std::string> output_map;
+    // Used as stack for tracking struct names. Needed to prevent infinite recursion.
+    std::vector<std::string> struct_stack;
     int output_ctr = 0;
 
     static inline std::string
