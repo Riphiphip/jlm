@@ -104,6 +104,37 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_struct_type(const jlm::structtype *st) {
+        std::ostringstream s;
+        s << "!llvm.struct<";
+        if (st->has_name()) {
+            s << "\"" << st->name() << "\"";
+        }
+        // Only print full declaration for non-recursive struct references
+        if (!st->has_name() || std::find(struct_stack.begin(), struct_stack.end(), st->name()) == struct_stack.end()) {
+            if (st->has_name()){
+                this->struct_stack.push_back(st->name());
+                s << ", ";
+            }
+            if (st->packed()) {
+                s << "packed ";
+            }
+            s << "(";
+            for (size_t i = 0; i < st->declaration()->nelements(); ++i) {
+                if (i!=0) {
+                    s << ", ";
+                }
+                s << print_type(&st->declaration()->element(i));
+            }
+            s << ")";
+            if (st->has_name()){
+                struct_stack.pop_back();
+            }
+        }
+        s << ">";
+        return s.str();
+    }
+
     std::string print_pointer_type(const jlm::PointerType *pt) {
         std::ostringstream s;
         if (auto ft = dynamic_cast<const jlm::FunctionType*>(&pt->GetElementType())) {
@@ -136,6 +167,8 @@ class PrintMLIR {
             s << print_pointer_type(pointer_type);
         } else if (auto array_type = dynamic_cast<const jlm::arraytype*>(t)){
             s << print_array_type(array_type);
+        } else if (auto struct_type = dynamic_cast<const jlm::structtype*>(t)){
+            s << print_struct_type(struct_type);
         } else {
             return t->debug_string();
         }
