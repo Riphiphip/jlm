@@ -191,7 +191,7 @@ class PrintMLIR {
 
         std::ostringstream s;
         // Should probably somehow be replaced with "llvm.mlir.constant", but I didn't understand the documentation
-        s << "llvm.undef: " << print_type(&node->output(0)->type());
+        s << "llvm.mlir.undef: " << print_type(&node->output(0)->type());
         auto original_output = node->output(0);
         std::string prev_output_id = print_output(original_output);
 
@@ -227,6 +227,8 @@ class PrintMLIR {
             s << print_constant_data_array_initialization(node, indent_lvl);
         } else if (auto cn = dynamic_cast<const jlm::CallNode*>(node)) {
             s << print_apply_node(cn);
+        } else if (auto op = dynamic_cast<const jlm::UndefValueOperation*>(&node->operation())) {
+            s << "llvm.mlir.undef: " << print_type(&node->output(0)->type());
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
