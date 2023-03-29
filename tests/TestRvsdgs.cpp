@@ -387,6 +387,7 @@ Bits2PtrTest::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       cvbits2ptr,
+      functionType,
       {valueArgument, iOStateArgument, memoryStateArgument, loopStateArgument});
 
     lambda->finalize({callResults[1], callResults[2], callResults[3]});
@@ -564,9 +565,11 @@ CallTest1::SetupRvsdg()
 
     auto callFResults = CallNode::Create(
       cvf,
+      functionType,
       {x[0], y[0], iOStateArgument, stz[0], loopStateArgument});
     auto callGResults = CallNode::Create(
       cvg,
+      functionType,
       {z[0], z[0], callFResults[1], callFResults[2], callFResults[3]});
 
     auto sum = jive::bitadd_op::create(32, callFResults[0], callGResults[0]);
@@ -705,16 +708,20 @@ CallTest2::SetupRvsdg()
 
     auto create1 = CallNode::Create(
       create_cv,
+      functionType,
       {six, iOStateArgument, memoryStateArgument, loopStateArgument});
     auto create2 = CallNode::Create(
       create_cv,
+      functionType,
       {seven, create1[1], create1[2], create1[3]});
 
     auto destroy1 = CallNode::Create(
       destroy_cv,
+      functionType,
       {create1[0], create2[1], create2[2], create2[3]});
     auto destroy2 = CallNode::Create(
       destroy_cv,
+      functionType,
       {create2[0], destroy1[0], destroy1[1], destroy1[2]});
 
     lambda->finalize(destroy2);
@@ -807,6 +814,7 @@ IndirectCallTest1::SetupRvsdg()
 
     auto call = CallNode::Create(
       pointerArgument,
+      functionType,
       {iOStateArgument, memoryStateArgument, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(call);
@@ -840,9 +848,11 @@ IndirectCallTest1::SetupRvsdg()
 
     auto call_four = CallNode::Create(
       fctindcall_cv,
+      functionType,
       {fctfour_cv, iOStateArgument, memoryStateArgument, loopStateArgument});
     auto call_three = CallNode::Create(
       fctindcall_cv,
+      functionType,
       {fctthree_cv, call_four[1], call_four[2], call_four[3]});
 
     auto add = jive::bitadd_op::create(32, call_four[0], call_three[0]);
@@ -962,6 +972,7 @@ IndirectCallTest2::SetupRvsdg()
 
     auto call = CallNode::Create(
       pointerArgument,
+      functionType,
       {iOStateArgument, memoryStateArgument, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(call);
@@ -1001,6 +1012,7 @@ IndirectCallTest2::SetupRvsdg()
 
     auto call = CallNode::Create(
       functionICv,
+      functionType,
       {argumentFunctionCv, iOStateArgument, storeNode[0], loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(call);
@@ -1044,10 +1056,12 @@ IndirectCallTest2::SetupRvsdg()
 
     auto callX = CallNode::Create(
       functionXCv,
+      functionType,
       {pxAlloca[0], iOStateArgument, pyMerge, loopStateArgument});
 
     auto callY = CallNode::Create(
       functionYCv,
+      functionType,
       {pyAlloca[0], iOStateArgument, callX[2], loopStateArgument});
 
     auto loadG1 = LoadNode::Create(globalG1Cv, {callY[2]}, jive::bit32, 4);
@@ -1093,6 +1107,7 @@ IndirectCallTest2::SetupRvsdg()
 
     auto callX = CallNode::Create(
       functionXCv,
+      functionType,
       {pzAlloca[0], iOStateArgument, pzMerge, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callX);
@@ -1209,6 +1224,7 @@ ExternalCallTest::SetupRvsdg()
 
     auto callGResults = CallNode::Create(
       functionGCv,
+      functionType,
       {loadPath[0], loadMode[0], iOStateArgument, loadMode[1], loopStateArgument});
 
     lambda->finalize(callGResults);
@@ -1406,6 +1422,7 @@ DeltaTest1::SetupRvsdg()
     auto st = StoreNode::Create(cvf, five, {memoryStateArgument}, 4);
     auto callg = CallNode::Create(
       cvg,
+      functionType,
       {cvf, iOStateArgument, st[0], loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callg);
@@ -1528,6 +1545,7 @@ DeltaTest2::SetupRvsdg()
     auto st = StoreNode::Create(cvd1, b5, {memoryStateArgument}, 4);
     auto callResults = CallNode::Create(
       cvf1,
+      functionType,
       {iOStateArgument, st[0], loopStateArgument});
     st = StoreNode::Create(cvd2, b42, {callResults[1]}, 4);
 
@@ -1654,6 +1672,7 @@ DeltaTest3::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       lambdaFArgument,
+      functionType,
       {iOStateArgument, memoryStateArgument, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize({callResults[1], callResults[2], callResults[3]});
@@ -1746,6 +1765,7 @@ ImportTest::SetupRvsdg()
     auto st = StoreNode::Create(cvd1, b2, {memoryStateArgument}, 4);
     auto callResults = CallNode::Create(
       cvf1,
+      functionType,
       {iOStateArgument, st[0], loopStateArgument});
     st = StoreNode::Create(cvd2, b21, {callResults[1]}, 4);
 
@@ -1832,12 +1852,14 @@ PhiTest1::SetupRvsdg()
     auto nm1 = jive::bitsub_op::create(64, nev->argument(0), one);
     auto callfibm1Results = CallNode::Create(
       fibev->argument(0),
+      functionType,
       {nm1, resultev->argument(0), gIIoState->argument(0), gIMemoryState->argument(0), gILoopState->argument(0)});
 
     two = jive::create_bitconstant(gammaNode->subregion(0), 64, 2);
     auto nm2 = jive::bitsub_op::create(64, nev->argument(0), two);
     auto callfibm2Results = CallNode::Create(
       fibev->argument(0),
+      functionType,
       {nm2, resultev->argument(0), callfibm1Results[0], callfibm1Results[1], callfibm1Results[2]});
 
     auto gepnm1 = getelementptr_op::create(resultev->argument(0), jive::bit64, {nm1});
@@ -1903,6 +1925,7 @@ PhiTest1::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       fibcv,
+      functionType,
       {ten, gep, iOStateArgument, state, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callResults);
@@ -2000,6 +2023,7 @@ PhiTest2::SetupRvsdg()
 
     auto call = CallNode::Create(
       pointerArgument,
+      functionType,
       {iOStateArgument, memoryStateArgument, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(call);
@@ -2042,10 +2066,12 @@ PhiTest2::SetupRvsdg()
 
     auto callB = CallNode::Create(
       functionBCv,
+      functionType,
       {paAlloca[0], iOStateArgument, paMerge, loopStateArgument});
 
     auto callD = CallNode::Create(
       functionDCv,
+      functionType,
       {paAlloca[0], callB[1], callB[2], callB[3]});
 
     auto sum = jive::bitadd_op::create(32, callB[0], callD[0]);
@@ -2094,10 +2120,12 @@ PhiTest2::SetupRvsdg()
 
     auto callI = CallNode::Create(
       functionICv,
+      functionType,
       {functionEightCv, iOStateArgument, pbMerge, loopStateArgument});
 
     auto callC = CallNode::Create(
       functionCCv,
+      functionType,
       {pbAlloca[0], callI[1], callI[2], callI[3]});
 
     auto sum = jive::bitadd_op::create(32, callI[0], callC[0]);
@@ -2142,6 +2170,7 @@ PhiTest2::SetupRvsdg()
 
     auto callA = CallNode::Create(
       functionACv,
+      functionType,
       {pcAlloca[0], iOStateArgument, pcMerge, loopStateArgument});
 
     auto loadX = LoadNode::Create(xArgument, {callA[2]}, jive::bit32, 4);
@@ -2186,6 +2215,7 @@ PhiTest2::SetupRvsdg()
 
     auto callA = CallNode::Create(
       functionACv,
+      functionType,
       {pdAlloca[0], iOStateArgument, pdMerge, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callA);
@@ -2277,6 +2307,7 @@ PhiTest2::SetupRvsdg()
 
     auto callA = CallNode::Create(
       functionACv,
+      functionType,
       {pTestAlloca[0], iOStateArgument, pTestMerge, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callA);
@@ -2618,6 +2649,7 @@ EscapedMemoryTest2::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       externalFunction1,
+      functionType,
       {mallocResults[0], iOStateArgument, mergeResult, loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callResults);
@@ -2652,6 +2684,7 @@ EscapedMemoryTest2::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       externalFunction2,
+      functionType,
       {iOStateArgument, memoryStateArgument, loopStateArgument});
 
     auto loadResults = LoadNode::Create(callResults[0], {callResults[2]}, jive::bit32, 4);
@@ -2761,6 +2794,7 @@ EscapedMemoryTest3::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       externalFunction,
+      functionType,
       {iOStateArgument, memoryStateArgument, loopStateArgument});
 
     auto loadResults = LoadNode::Create(callResults[0], {callResults[2]}, jive::bit32, 4);
@@ -2930,6 +2964,7 @@ MemcpyTest::SetupRvsdg()
 
     auto callResults = CallNode::Create(
       functionFArgument,
+      functionType,
       {iOStateArgument, memcpyResults[0], loopStateArgument});
 
     auto lambdaOutput = lambda->finalize(callResults);
