@@ -13,6 +13,7 @@
 #include <jlm/util/Statistics.hpp>
 
 #include <jive/view.hpp>
+#include <jive/rvsdg/control.hpp>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -174,7 +175,9 @@ class PrintMLIR {
             s << print_array_type(array_type);
         } else if (auto struct_type = dynamic_cast<const jlm::structtype*>(t)){
             s << print_struct_type(struct_type);
-        } else {
+        } else if (auto control_type = dynamic_cast<const jive::ctltype*>(t)){
+            s << "!rvsdg.ctrl<" << control_type->nalternatives() << ">";
+        } else{
             return t->debug_string();
         }
         return s.str();
@@ -250,7 +253,33 @@ class PrintMLIR {
             this->output_map[original_output] = prev_output_id;
             this->output_map.erase(&ephemeral_output);
         }
+        return s.str();
+    }
 
+    std::string print_getElementPtr_node(jive::simple_node *node) {
+        assert(dynamic_cast<const jlm::getelementptr_op*>(&node->operation()) && "Can only print getElementPtr nodes");
+        std::ostringstream s;
+        s << "llvm.getelementptr " << print_input_origin(node->input(0)) << "[";
+        for (size_t i = 0; i < node->ninputs(); ++i){
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i));
+        }
+        s << "]: (";
+        for (size_t i = 0; i < node->ninputs(); ++i){
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_type(&node->input(i)->type());
+        }
+        s << ") -> ";
+        for (size_t i = 0; i < node->noutputs(); ++i){
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_type(&node->output(i)->type());
+        }
         return s.str();
     }
 
@@ -267,6 +296,11 @@ class PrintMLIR {
             s << print_apply_node(cn);
         } else if (auto op = dynamic_cast<const jlm::UndefValueOperation*>(&node->operation())) {
             s << "llvm.mlir.undef: " << print_type(&node->output(0)->type());
+        } else if (auto op = dynamic_cast<const jlm::getelementptr_op*>(&node->operation())) {
+            s << print_getElementPtr_node(node);
+        } else if (is_ctlconstant_op(node->operation())) {
+            auto op = to_ctlconstant_op(node->operation());
+            s << "rvsdg.constantCtrl " << op.value().alternative() << ": " << print_type(&node->output(0)->type());
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
@@ -304,17 +338,17 @@ class PrintMLIR {
                 s << " = ";
             }
             if (auto sn = dynamic_cast<jive::simple_node *>(node)) {
-            s << print_simple_node(sn, indent_lvl);
-        } else if (auto lambda = dynamic_cast<const jlm::lambda::node *>(node)){
-            s << print_lambda(*lambda, indent_lvl);
+                s << print_simple_node(sn, indent_lvl);
+            } else if (auto lambda = dynamic_cast<const jlm::lambda::node *>(node)){
+                s << print_lambda(*lambda, indent_lvl);
             } else if (auto gamma = dynamic_cast<jive::gamma_node *>(node)) {
-            s << print_gamma(gamma, indent_lvl);
+                s << print_gamma(gamma, indent_lvl);
             }  else if (auto theta = dynamic_cast<jive::theta_node *>(node)) {
-            s << print_theta(theta, indent_lvl);
+                s << print_theta(theta, indent_lvl);
             } else if (auto delta = dynamic_cast<jlm::delta::node *>(node)) {
                 s << print_delta(delta, indent_lvl);
             } else {
-            s << "UNIMPLEMENTED STRUCTURAL NODE: " << node->operation().debug_string() << "\n"; 
+            s << "UNIMPLEMENTED STRUCTURAL NODE: " << node->operation().debug_string() << "\n";
             // throw jlm::error("Structural node"+node->operation().debug_string()+"not implemented yet");
         }
         return s.str();
@@ -386,9 +420,18 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_phi(const jlm::phi::node *pn, int indent_lvl = 0) {
+        std::ostringstream s;
+
+        return s.str();
+    }
+
     std::string print_gamma(const jive::gamma_node *gn, int indent_lvl = 0) {
         std::ostringstream s;
         s << "rvsdg.gammaNode";
+        // MLIR dialect always expects predicate to be of type "index"
+        // Will probably have to handle this at some point
+        // Control types!!!
         s << "(" << print_input_origin(gn->predicate()) << "): ";
         s << "(";
         for (size_t i = 1; i < gn->ninputs(); ++i) { // Predicate is input 0. Skip it here
