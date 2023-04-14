@@ -263,8 +263,8 @@ class PrintMLIR {
         assert(dynamic_cast<const jlm::getelementptr_op*>(&node->operation()) && "Can only print getElementPtr nodes");
         std::ostringstream s;
         s << "llvm.getelementptr " << print_input_origin(node->input(0)) << "[";
-        for (size_t i = 0; i < node->ninputs(); ++i){
-            if(i!=0){
+        for (size_t i = 1; i < node->ninputs(); ++i){
+            if(i!=1){
                 s << ", ";
             }
             s << print_input_origin(node->input(i));
@@ -301,6 +301,96 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_alloca_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::alloca_op*>(&node->operation());
+        assert (op != NULL && "Can only print alloca nodes");
+        std::ostringstream s;
+        s << "rvsdg.alloca " << print_type(&op->value_type()) << " (" ;
+        for (size_t i = 1; i < node->ninputs(); ++i) {
+            if(i!=1){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i));
+        }
+        s << ") -> ";
+        for (size_t i = 0; i < node->noutputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_type(&node->output(i)->type());
+        }
+        return s.str();
+    }
+
+    std::string print_memStateMerge_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::MemStateMergeOperator*>(&node->operation());
+        assert (op != NULL && "Can only print memStateMerge nodes");
+        std::ostringstream s;
+        s << "rvsdg.memStateMerge (";
+        for (size_t i = 0; i < node->ninputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i));
+        }
+        s << "): ";
+        s << print_type(&node->output(0)->type()); 
+        return s.str();
+    }
+
+    std::string print_bitcast_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::bitcast_op*>(&node->operation());
+        assert(op != NULL && "Can only print bitcast nodes");
+        std::ostringstream s;
+        s << "llvm.bitcast " << print_input_origin(node->input(0)) << " : " << print_type(&node->input(0)->type()) << " to " << print_type(&node->output(0)->type());
+        return s.str();
+    }
+
+    std::string print_load_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::LoadOperation*>(&node->operation());
+        assert(op != NULL && "Can only print load nodes");
+        std::ostringstream s;
+        s << "rvsdg.load " << print_input_origin(node->input(0)) << ": " << print_type(&node->input(0)->type());
+        s << " (";
+        for (size_t i = 1; i < node->ninputs(); ++i) {
+            if(i!=1){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i));
+        }
+        s << ") -> ";
+        for (size_t i = 0; i < node->noutputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_type(&node->output(i)->type());
+        }
+        return s.str();
+    }
+
+    std::string print_store_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::StoreOperation*>(&node->operation());
+        assert(op != NULL && "Can only print store nodes");
+        std::ostringstream s;
+        s << "rvsdg.store (" << print_input_origin(node->input(0)) << ": " << print_type(&node->input(0)->type());
+        s << ", " << print_input_origin(node->input(1)) << ": " << print_type(&node->input(1)->type());
+        s << ") (";
+        for (size_t i = 2; i < node->ninputs(); ++i) {
+            if(i!=2){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i));
+        }
+        s << ") -> ";
+        for (size_t i = 0; i < node->noutputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_type(&node->output(i)->type());
+        }
+        return s.str();
+    }
+
     std::string print_simple_node(jive::simple_node *node, int indent_lvl) {
         std::ostringstream s;
         if (auto o = dynamic_cast<const jive::bitconstant_op *>(&(node->operation()))) {
@@ -323,6 +413,16 @@ class PrintMLIR {
             s << "rvsdg.constantCtrl " << op.value().alternative() << ": " << print_type(&node->output(0)->type());
         } else if (auto op = dynamic_cast<const jive::match_op*>(&node->operation())) {
             s << print_match_node(node, indent_lvl);
+        } else if (auto op = dynamic_cast<const jlm::alloca_op*>(&node->operation())) {
+            s << print_alloca_node(node);
+        } else if (auto op = dynamic_cast<const jlm::MemStateMergeOperator*>(&node->operation())) {
+            s << print_memStateMerge_node(node);
+        } else if (auto op = dynamic_cast<const jlm::bitcast_op*>(&node->operation())) {
+            s << print_bitcast_node(node);  
+        } else if (auto op = dynamic_cast<const jlm::LoadOperation*>(&node->operation())) {
+            s << print_load_node(node);
+        } else if (auto op = dynamic_cast<const jlm::StoreOperation*>(&node->operation())) {
+            s << print_store_node(node);
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
