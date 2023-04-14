@@ -227,7 +227,10 @@ class PrintMLIR {
     } 
 
     std::string print_constant_data_array_initialization(jive::simple_node *node, int indent_lvl) {
-        assert(dynamic_cast<const jlm::ConstantDataArray*>(&node->operation()) && "Can only print constant data array nodes");
+        assert((dynamic_cast<const jlm::ConstantDataArray*>(&node->operation())||
+                dynamic_cast<const jlm::ConstantStruct*>(&node->operation())
+               ) && "Can only print constant data array or constant struct nodes"
+        );
         assert(this->output_map.count(node->output(0)) && "Node output must already be printed");
 
         std::ostringstream s;
@@ -291,6 +294,8 @@ class PrintMLIR {
             s << value.to_int();
             s << ": " << print_type(&node->output(0)->type());
         } else if (auto op = dynamic_cast<const jlm::ConstantDataArray*>(&(node->operation()))) {
+            s << print_constant_data_array_initialization(node, indent_lvl);
+        } else if (auto op = dynamic_cast<const jlm::ConstantStruct*>(&(node->operation()))) {
             s << print_constant_data_array_initialization(node, indent_lvl);
         } else if (auto cn = dynamic_cast<const jlm::CallNode*>(node)) {
             s << print_apply_node(cn);
