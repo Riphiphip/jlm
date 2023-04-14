@@ -286,6 +286,21 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_match_node(jive::simple_node *node, int indent_lvl = 0) {
+        auto op = dynamic_cast<const jive::match_op*>(&node->operation());
+        assert(op && "Can only print match nodes");
+        auto rule_attr_name = "#rvsdg.matchRule";
+        std::ostringstream s;
+        s << "rvsdg.match(" << print_input_origin(node->input(0)) << " : " << print_type(&node->input(0)->type()) << ") [\n";
+        for (auto mapping : *op) {
+            s << indent(indent_lvl+1) << rule_attr_name << "<" << mapping.first << " -> " << mapping.second << ">,\n";
+        }
+        s << indent(indent_lvl+1) << rule_attr_name << "<default" << " -> " << op->default_alternative() << ">\n";
+        s << indent(indent_lvl) << "]";
+        s << " -> " << print_type(&node->output(0)->type());
+        return s.str();
+    }
+
     std::string print_simple_node(jive::simple_node *node, int indent_lvl) {
         std::ostringstream s;
         if (auto o = dynamic_cast<const jive::bitconstant_op *>(&(node->operation()))) {
@@ -306,6 +321,8 @@ class PrintMLIR {
         } else if (is_ctlconstant_op(node->operation())) {
             auto op = to_ctlconstant_op(node->operation());
             s << "rvsdg.constantCtrl " << op.value().alternative() << ": " << print_type(&node->output(0)->type());
+        } else if (auto op = dynamic_cast<const jive::match_op*>(&node->operation())) {
+            s << print_match_node(node, indent_lvl);
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
