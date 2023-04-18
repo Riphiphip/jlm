@@ -208,7 +208,7 @@ class PrintMLIR {
         s << "rvsdg.applyNode " << print_input_with_type(cn->input(0));
         s << "(";
         for (size_t i = 1; i < cn->ninputs(); ++i) {
-            if(i!=0){
+            if(i!=1){
                 s << ", ";
             }
             s << print_input_with_type(cn->input(i));
@@ -391,6 +391,51 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_binary_bitop_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jive::bitbinary_op*>(&node->operation());
+        assert(op != NULL && "Can only print binary bitop nodes");
+        std::ostringstream s;
+        s << "llvm.";
+        if (auto addop = dynamic_cast<const jive::bitadd_op*>(op)){
+            s << "add";
+        } else if (auto andop = dynamic_cast<const jive::bitand_op*>(op)){
+            s << "and";
+        } else if (auto ashr = dynamic_cast<const jive::bitashr_op*>(op)){
+            s << "ashr";
+        } else if (auto mulop = dynamic_cast<const jive::bitmul_op*>(op)){
+            s << "mul";
+        } else if (auto orop = dynamic_cast<const jive::bitor_op*>(op)){
+            s << "or";
+        } else if (auto sdivop = dynamic_cast<const jive::bitsdiv_op*>(op)){
+            s << "sdiv";
+        } else if (auto shl = dynamic_cast<const jive::bitshl_op*>(op)){
+            s << "shl";
+        } else if (auto shr = dynamic_cast<const jive::bitshr_op*>(op)){
+            s << "lshr";
+        } else if (auto smodop = dynamic_cast<const jive::bitsmod_op*>(op)){
+            s << "srem";
+        } else if (auto smulhop = dynamic_cast<const jive::bitsmulh_op*>(op)){
+            assert(false && "Binary bit op smulh not supported");
+        } else if (auto subop = dynamic_cast<const jive::bitsub_op*>(op)){
+            s << "sub";
+        } else if (auto udivop = dynamic_cast<const jive::bitudiv_op*>(op)){
+            s << "udiv";
+        } else if (auto umodop = dynamic_cast<const jive::bitumod_op*>(op)){
+            s << "urem";
+        } else if (auto umulhop = dynamic_cast<const jive::bitumulh_op*>(op)){
+            assert(false && "Binary bit op umulh not supported");
+        } else if (auto xorop = dynamic_cast<const jive::bitxor_op*>(op)){
+            s << "xor";
+        } else {
+            assert(false && "Unknown binary bitop");
+        }
+        s << " ";
+        s << print_input_origin(node->input(0));
+        s << ", " << print_input_origin(node->input(1));
+        s << ": " << print_type(&node->output(0)->type());
+        return s.str();
+    }
+
     std::string print_simple_node(jive::simple_node *node, int indent_lvl) {
         std::ostringstream s;
         if (auto o = dynamic_cast<const jive::bitconstant_op *>(&(node->operation()))) {
@@ -423,6 +468,8 @@ class PrintMLIR {
             s << print_load_node(node);
         } else if (auto op = dynamic_cast<const jlm::StoreOperation*>(&node->operation())) {
             s << print_store_node(node);
+        } else if (auto op = dynamic_cast<const jive::bitbinary_op*>(&node->operation())) {
+            s << print_binary_bitop_node(node);
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
