@@ -516,6 +516,8 @@ class PrintMLIR {
                 s << print_theta(theta, indent_lvl);
             } else if (auto delta = dynamic_cast<jlm::delta::node *>(node)) {
                 s << print_delta(delta, indent_lvl);
+            } else if (auto phi = dynamic_cast<jlm::phi::node *>(node)) {
+                s << print_phi(phi, indent_lvl);
             } else {
             s << "UNIMPLEMENTED STRUCTURAL NODE: " << node->operation().debug_string() << "\n";
             // throw jlm::error("Structural node"+node->operation().debug_string()+"not implemented yet");
@@ -589,18 +591,9 @@ class PrintMLIR {
         return s.str();
     }
 
-    std::string print_phi(const jlm::phi::node *pn, int indent_lvl = 0) {
-        std::ostringstream s;
-
-        return s.str();
-    }
-
     std::string print_gamma(const jive::gamma_node *gn, int indent_lvl = 0) {
         std::ostringstream s;
         s << "rvsdg.gammaNode";
-        // MLIR dialect always expects predicate to be of type "index"
-        // Will probably have to handle this at some point
-        // Control types!!!
         s << "(" << print_input_origin(gn->predicate()) << "): ";
         s << "(";
         for (size_t i = 1; i < gn->ninputs(); ++i) { // Predicate is input 0. Skip it here
@@ -646,6 +639,29 @@ class PrintMLIR {
                 s << ", ";
             }
             s << print_type(&tn->output(i)->type());
+        }
+        s << "\n";
+        return s.str();
+    }
+
+    std::string print_phi(const jlm::phi::node *pn, int indent_lvl = 0) {
+        std::ostringstream s;
+        s << "rvsdg.phiNode";
+        s << "(";
+        for (size_t i = 0; i < pn->ninputs(); ++i) {
+            if (i != 0) {
+                s << ", ";
+            }
+            s << print_input_origin(pn->input(i)) << ": " << print_type(&pn->input(i)->type());
+        }
+        s << "):\n";
+        s << print_subregion(pn->subregion(), indent_lvl, "rvsdg.phiResult");
+        s << "->";
+        for (size_t i = 0; i < pn->noutputs(); ++i) {
+            if (i != 0) {
+                s << ", ";
+            }
+            s << print_type(&pn->output(i)->type());
         }
         s << "\n";
         return s.str();
