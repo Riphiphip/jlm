@@ -305,7 +305,7 @@ class PrintMLIR {
         auto op = dynamic_cast<const jlm::alloca_op*>(&node->operation());
         assert (op != NULL && "Can only print alloca nodes");
         std::ostringstream s;
-        s << "rvsdg.alloca " << print_type(&op->value_type()) << " (" ;
+        s << "jlm.alloca " << print_type(&op->value_type()) << " (" ;
         for (size_t i = 1; i < node->ninputs(); ++i) {
             if(i!=1){
                 s << ", ";
@@ -350,7 +350,7 @@ class PrintMLIR {
         auto op = dynamic_cast<const jlm::LoadOperation*>(&node->operation());
         assert(op != NULL && "Can only print load nodes");
         std::ostringstream s;
-        s << "rvsdg.load " << print_input_origin(node->input(0)) << ": " << print_type(&node->input(0)->type());
+        s << "jlm.load " << print_input_origin(node->input(0)) << ": " << print_type(&node->input(0)->type());
         s << " (";
         for (size_t i = 1; i < node->ninputs(); ++i) {
             if(i!=1){
@@ -372,7 +372,7 @@ class PrintMLIR {
         auto op = dynamic_cast<const jlm::StoreOperation*>(&node->operation());
         assert(op != NULL && "Can only print store nodes");
         std::ostringstream s;
-        s << "rvsdg.store (" << print_input_origin(node->input(0)) << ": " << print_type(&node->input(0)->type());
+        s << "jlm.store (" << print_input_origin(node->input(0)) << ": " << print_type(&node->input(0)->type());
         s << ", " << print_input_origin(node->input(1)) << ": " << print_type(&node->input(1)->type());
         s << ") (";
         for (size_t i = 2; i < node->ninputs(); ++i) {
