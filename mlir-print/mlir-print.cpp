@@ -169,6 +169,8 @@ class PrintMLIR {
             s << "!rvsdg.memState";
         } else if (auto memstate_type = dynamic_cast<const jlm::MemoryStateType*>(t)){
             s << "!rvsdg.memState";
+        } else if (auto vararg_type =dynamic_cast<const jlm::varargtype*>(t)) {
+            s << "!jlm.varargList";
         } else if (auto pointer_type = dynamic_cast<const jlm::PointerType*>(t)){
             s << print_pointer_type(pointer_type);
         } else if (auto array_type = dynamic_cast<const jlm::arraytype*>(t)){
@@ -346,6 +348,39 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_bitcompare_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jive::bitcompare_op*>(&node->operation());
+        assert(op != NULL && "Can only print bitcompare nodes");
+        std::ostringstream s;
+        s << "llvm.icmp \"";
+        if (dynamic_cast<const jive::biteq_op*>(op)) {
+            s << "eq";
+        } else if (dynamic_cast<const jive::bitne_op*>(op)) {
+            s << "ne";
+        } else if (dynamic_cast<const jive::bitsge_op*>(op)) {
+            s << "sge";
+        } else if (dynamic_cast<const jive::bitsgt_op*>(op)) {
+            s << "sgt";
+        } else if (dynamic_cast<const jive::bitsle_op*>(op)) {
+            s << "sle";
+        } else if (dynamic_cast<const jive::bitslt_op*>(op)) {
+            s << "slt";
+        } else if (dynamic_cast<const jive::bituge_op*>(op)) {
+            s << "uge";
+        } else if (dynamic_cast<const jive::bitugt_op*>(op)) {
+            s << "ugt";
+        } else if (dynamic_cast<const jive::bitule_op*>(op)) {
+            s << "ule";
+        } else if (dynamic_cast<const jive::bitult_op*>(op)) {
+            s << "ult";
+        } else {
+            assert(false && "Unknown bitcompare operation");
+        }
+        s << "\" " << print_input_origin(node->input(0)) << ", " << print_input_origin(node->input(1));
+        s << ": " << print_type(&op->type());
+        return s.str();
+    }
+
     std::string print_load_node(jive::simple_node *node) {
         auto op = dynamic_cast<const jlm::LoadOperation*>(&node->operation());
         assert(op != NULL && "Can only print load nodes");
@@ -436,6 +471,40 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_memcpy_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::Memcpy*>(&node->operation());      
+        assert(op != NULL && "Can only print memcpy nodes");
+        std::ostringstream s;
+        s << "jlm.memcpy ";
+        for (size_t i = 0; i < node->ninputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i)) ;
+            if (i < 4) { // Don't print types for memStates
+                s<< ": " << print_type(&node->input(i)->type());
+            }
+        }
+        s << " -> ";
+        s << print_type(&node->output(0)->type());
+        return s.str();
+    }
+
+    std::string print_valist_node(jive::simple_node *node) {
+        auto op = dynamic_cast<const jlm::valist_op*>(&node->operation());
+        assert(op != NULL && "Can only print valist nodes");
+        std::ostringstream s;
+        s << "jlm.createVarargs (";
+        for (size_t i = 0; i < node->ninputs(); ++i) {
+            if(i!=0){
+                s << ", ";
+            }
+            s << print_input_origin(node->input(i)) << ": " << print_type(&node->input(i)->type());
+        }
+        s << ") -> " << print_type(&node->output(0)->type());
+        return s.str();
+    }
+
     std::string print_simple_node(jive::simple_node *node, int indent_lvl) {
         std::ostringstream s;
         if (auto o = dynamic_cast<const jive::bitconstant_op *>(&(node->operation()))) {
@@ -464,12 +533,18 @@ class PrintMLIR {
             s << print_memStateMerge_node(node);
         } else if (auto op = dynamic_cast<const jlm::bitcast_op*>(&node->operation())) {
             s << print_bitcast_node(node);  
+        } else if (auto op = dynamic_cast<const jive::bitcompare_op*>(&node->operation())) {
+            s << print_bitcompare_node(node);
         } else if (auto op = dynamic_cast<const jlm::LoadOperation*>(&node->operation())) {
             s << print_load_node(node);
         } else if (auto op = dynamic_cast<const jlm::StoreOperation*>(&node->operation())) {
             s << print_store_node(node);
         } else if (auto op = dynamic_cast<const jive::bitbinary_op*>(&node->operation())) {
             s << print_binary_bitop_node(node);
+        } else if (auto op = dynamic_cast<const jlm::Memcpy*>(&node->operation())) {
+            s << print_memcpy_node(node);
+        } else if (auto op = dynamic_cast<const jlm::valist_op*>(&node->operation())) {
+            s << print_valist_node(node);
         } else {
             // TODO: lookup op name
             s << node->operation().debug_string() << " (";
@@ -594,7 +669,8 @@ class PrintMLIR {
     std::string print_gamma(const jive::gamma_node *gn, int indent_lvl = 0) {
         std::ostringstream s;
         s << "rvsdg.gammaNode";
-        s << "(" << print_input_origin(gn->predicate()) << "): ";
+        s << "(" << print_input_origin(gn->predicate()) << ": ";
+        s << print_type(&gn->predicate()->type()) << ")";
         s << "(";
         for (size_t i = 1; i < gn->ninputs(); ++i) { // Predicate is input 0. Skip it here
             if(i!=0 && i!=1){
@@ -685,14 +761,23 @@ class PrintMLIR {
         return s.str();
     }
 
+    std::string print_omega(const jive::graph &graph) {
+        std::ostringstream s;
+        s << "rvsdg.omegaNode ";
+        s << print_subregion(graph.root(), 0, "rvsdg.omegaResult");
+        return s.str();
+    }
+
 public:
     std::string print_mlir(jlm::RvsdgModule &rm) {
         auto &graph = rm.Rvsdg();
-        auto root = graph.root();
+        // auto root = graph.root();
         std::ostringstream s;
-        for (auto &node: root->nodes){
-            s << print_node(&node);
-        }
+        // for (auto &node: root->nodes){
+        //     s << print_node(&node);
+        // }
+        s << print_omega(graph);
+        s << "\n";
         return s.str();
     }
 };
@@ -721,7 +806,7 @@ main (int argc, char ** argv)
     jlm::DeadNodeElimination dne;
     // run dead node elimination to skip some garbage
     dne.run(*rvsdgModule, statisticsCollector);
-    jive::view(rvsdgModule->Rvsdg().root(), stderr);
+    // jive::view(rvsdgModule->Rvsdg().root(), stderr);
     PrintMLIR printMlir;
     std::cout << printMlir.print_mlir(*rvsdgModule);
 
