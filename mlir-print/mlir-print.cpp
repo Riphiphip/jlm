@@ -81,6 +81,7 @@ parse_cmdflags(int argc, char ** argv, cmdflags & flags)
 }
 class PrintMLIR {
     std::unordered_map<const jive::output *, std::string> output_map;
+    std::unordered_map<const jive::output *, const jive::bitconstant_op *> constant_op_map;
     // Used as stack for tracking struct names. Needed to prevent infinite recursion.
     std::vector<std::string> struct_stack;
     int output_ctr = 0;
@@ -195,6 +196,12 @@ class PrintMLIR {
         return output_map[output];
     }
 
+    std::string print_dummy_output() {
+        std::ostringstream s;
+        s << "%" << output_ctr++;
+        return s.str();
+    }
+
     inline std::string print_input_origin(const jive::input *input) {
         return print_output(input->origin());
     }
@@ -269,10 +276,22 @@ class PrintMLIR {
             if(i!=1){
                 s << ", ";
             }
-            s << print_input_origin(node->input(i));
+            if (auto ptr_type = dynamic_cast<const jlm::PointerType*>(&node->input(0)->type())) {
+                if (auto struct_type = dynamic_cast<const jlm::structtype*>(&ptr_type->GetElementType())) {
+                    s << constant_op_map[node->input(i)->origin()]->value().to_int();
+                } else {
+                    s << print_input_origin(node->input(i));
+                }
+            }
         }
         s << "]: (";
-        for (size_t i = 0; i < node->ninputs(); ++i){
+        size_t n_inputs = node->ninputs();
+        if (auto ptr_type = dynamic_cast<const jlm::PointerType*>(&node->input(0)->type())) {
+            if (auto struct_type = dynamic_cast<const jlm::structtype*>(&ptr_type->GetElementType())) {
+                n_inputs = 1;
+            }
+        }
+        for (size_t i = 0; i < n_inputs; ++i){
             if(i!=0){
                 s << ", ";
             }
@@ -512,6 +531,7 @@ class PrintMLIR {
             s << "arith.constant ";
             s << value.to_int();
             s << ": " << print_type(&node->output(0)->type());
+            constant_op_map[node->output(0)] = o;
         } else if (auto op = dynamic_cast<const jlm::ConstantDataArray*>(&(node->operation()))) {
             s << print_constant_data_array_initialization(node, indent_lvl);
         } else if (auto op = dynamic_cast<const jlm::ConstantStruct*>(&(node->operation()))) {
@@ -519,7 +539,11 @@ class PrintMLIR {
         } else if (auto cn = dynamic_cast<const jlm::CallNode*>(node)) {
             s << print_apply_node(cn);
         } else if (auto op = dynamic_cast<const jlm::UndefValueOperation*>(&node->operation())) {
-            s << "llvm.mlir.undef: " << print_type(&node->output(0)->type());
+            std::string op_name = "llvm.mlir.undef";
+            if (auto type = dynamic_cast<const jive::ctltype*>(&node->output(0)->type())) {
+                op_name = "jlm.undef";
+            }
+            s << op_name << ": " << print_type(&node->output(0)->type());
         } else if (auto op = dynamic_cast<const jlm::getelementptr_op*>(&node->operation())) {
             s << print_getElementPtr_node(node);
         } else if (is_ctlconstant_op(node->operation())) {
@@ -572,11 +596,21 @@ class PrintMLIR {
     std::string print_node(jive::node *node, int indent_lvl = 0) {
         std::ostringstream s;
             s << indent(indent_lvl);
-            for (size_t i = 0; i < node->noutputs(); ++i) {
+            size_t n_outputs = node->noutputs();
+            // RVSDG dialect expects argument, results, and outputs to be identical.
+            // Do some trickery to ensure correct number of outputs.
+            if (auto phi = dynamic_cast<jlm::phi::node *>(node)) {
+                n_outputs = phi->subregion()->narguments();
+            }
+            for (size_t i = 0; i < n_outputs; ++i) {
                 if(i!=0){
                     s << ", ";
                 }
-                s << print_output(node->output(i));
+                if (i < node->noutputs()){
+                    s << print_output(node->output(i));
+                } else {
+                    s << print_dummy_output();
+                }
             }
             if(node->noutputs()){
                 s << " = ";
@@ -662,7 +696,7 @@ class PrintMLIR {
         s << "):\n";
         s << print_subregion(ln.subregion(), indent_lvl+1, "rvsdg.lambdaResult");
         s << "\n";
-
+        
         return s.str();
     }
 
@@ -733,11 +767,13 @@ class PrintMLIR {
         s << "):\n";
         s << print_subregion(pn->subregion(), indent_lvl, "rvsdg.phiResult");
         s << "->";
-        for (size_t i = 0; i < pn->noutputs(); ++i) {
+        // Iterates over region arguments since RVSDG dialect expects region results, region arguments,
+        // and node outputs to all match.
+        for (size_t i = 0; i < pn->subregion()->narguments(); ++i) {
             if (i != 0) {
                 s << ", ";
             }
-            s << print_type(&pn->output(i)->type());
+            s << print_type(&pn->subregion()->argument(i)->type());
         }
         s << "\n";
         return s.str();
