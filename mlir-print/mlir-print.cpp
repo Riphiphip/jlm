@@ -634,7 +634,7 @@ class PrintMLIR {
         return s.str();
     }
 
-    std::string print_subregion(jive::region *region, int indent_lvl, std::string result_type, int split_result_operands_at = -1) {
+    std::string print_subregion(jive::region *region, int indent_lvl, std::string result_type, int split_result_operands_at = -1, bool print_result_types = true) {
         std::ostringstream s;
         // arguments
         s << indent(indent_lvl) << "(";
@@ -659,7 +659,10 @@ class PrintMLIR {
                 if (split_result_operands_at >= 0 && i == (size_t)split_result_operands_at) {
                     s << "): (";
                 }
-                s << print_input_origin(region->result(i)) << ":" << print_type(&region->result(i)->type());
+                s << print_input_origin(region->result(i));
+                if (print_result_types || i >= (size_t)split_result_operands_at){
+                    s << ":" << print_type(&region->result(i)->type());
+                }
             }
             s << ")\n";
         }
@@ -742,7 +745,7 @@ class PrintMLIR {
             s << print_input_origin(tn->input(i)) << ": " << print_type(&tn->input(i)->type());
         }
         s << "):\n";
-        s << print_subregion(tn->subregion(), indent_lvl, "rvsdg.thetaResult", 1);
+        s << print_subregion(tn->subregion(), indent_lvl, "rvsdg.thetaResult", 1, false);
         s << "->";
         for (size_t i = 0; i < tn->noutputs(); ++i) {
             if (i != 0) {
