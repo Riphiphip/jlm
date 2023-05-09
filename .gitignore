@@ -7,3 +7,4 @@ check.log
 libjlm/include/jlm/tooling/CommandPaths.hpp
 .idea
 docs/html
+mlir-print-test-files
